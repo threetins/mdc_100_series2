@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:meta/meta.dart';
 
 import 'model/product.dart';
+import 'login.dart';
 
 // TODO: ADD VELOCITY CONSTANT 104
 const double _kFlingVelocity = 2.0;
@@ -10,9 +11,11 @@ class _FrontLayer extends StatelessWidget {
   // TODO: Add on-tap callback
   const _FrontLayer({
     Key key,
+    this.onTap,
     this.child
   }) : super(key: key);
 
+  final VoidCallback onTap;
   final Widget child;
 
   @override
@@ -26,6 +29,14 @@ class _FrontLayer extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           // TODO: Add a gesture detector
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: onTap,
+            child: Container(
+              height: 40.0,
+              alignment: AlignmentDirectional.centerStart,
+            )
+          ),
           Expanded(
               child: child
           )
@@ -83,6 +94,16 @@ class _BackdropState extends State<Backdrop> with SingleTickerProviderStateMixin
   }
 
   // TODO: Add functions to get and change the front layer visibility
+  @override
+  void didUpdateWidget(Backdrop old) {
+    super.didUpdateWidget(old);
+    
+    if (widget.currentCategory != old.currentCategory) {
+      _toggleBackdropLayerVisibility();
+    } else if (!_frontLayerVisible) {
+      _controller.fling(velocity: _kFlingVelocity);
+    }
+  }
 
   bool get _frontLayerVisible {
 
@@ -120,7 +141,10 @@ class _BackdropState extends State<Backdrop> with SingleTickerProviderStateMixin
         // TODO: Wrap front layer in _FrontLayer
         PositionedTransition(
             rect: layerAnimation,
-            child: _FrontLayer(child: widget.frontLayer)
+            child: _FrontLayer(
+              onTap: _toggleBackdropLayerVisibility,
+              child: widget.frontLayer
+            )
         )
       ],
     );
@@ -136,29 +160,40 @@ class _BackdropState extends State<Backdrop> with SingleTickerProviderStateMixin
       // TODO: Replace leading menu icon with IconButton
       // TODO: Remove leading property
       // TODO: Create title with _BackdropTitle parameter
-      leading: IconButton(
-        icon: Icon(Icons.menu),
-        onPressed: _toggleBackdropLayerVisibility
+//      leading: IconButton(
+//        icon: Icon(Icons.menu),
+//        onPressed: _toggleBackdropLayerVisibility
+//      ),
+      title: _BackdropTitle(
+        listenable: _controller.view,
+        onPress: _toggleBackdropLayerVisibility,
+        frontTitle: widget.frontTitle,
+        backTitle: widget.backTitle
       ),
-      title: Text('SHRINE'),
       actions: <Widget>[
         // TODO: Add shortcut to login screen from trailing icons
         IconButton(
             icon: Icon(
                 Icons.search,
-                semanticLabel: 'search'
+                semanticLabel: 'login'
             ),
             onPressed: () {
               // TODO: Add open login
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (BuildContext context) => LoginPage())
+              );
             }
         ),
         IconButton(
             icon: Icon(
                 Icons.tune,
-                semanticLabel: 'filter'
+                semanticLabel: 'login'
             ),
             onPressed: () {
               // TODO: Add open login
+              Navigator.push(context, MaterialPageRoute(builder: (BuildContext context) => LoginPage()));
             }
         )
       ],
@@ -169,6 +204,90 @@ class _BackdropState extends State<Backdrop> with SingleTickerProviderStateMixin
       appBar: appBar,
       //TODO: Return a LayoutBuilder widget
       body: LayoutBuilder(builder: _buildStack)
+    );
+  }
+}
+
+class _BackdropTitle extends AnimatedWidget {
+  
+  final Function onPress;
+  final Widget frontTitle;
+  final Widget backTitle;
+  
+  const _BackdropTitle({
+    Key key,
+    Listenable listenable,
+    this.onPress,
+    @required this.frontTitle,
+    @required this.backTitle,
+  }) :  assert(frontTitle != null),
+        assert(backTitle != null),
+        super(key: key, listenable: listenable);
+  
+  @override
+  Widget build(BuildContext context) {
+    final Animation<double> animation = this.listenable;
+
+    return DefaultTextStyle(
+      style: Theme.of(context).primaryTextTheme.title,
+      softWrap: false,
+      overflow: TextOverflow.ellipsis,
+      child: Row(
+         children: <Widget>[
+           SizedBox(
+             width: 72.0,
+             child: IconButton(
+               padding: EdgeInsets.only(right: 8.0),
+               onPressed: this.onPress,
+               icon: Stack(
+                 children: <Widget>[
+                   Opacity(
+                     opacity: animation.value,
+                     child: ImageIcon(AssetImage('assets/slanted_menu.png')),
+                   ),
+                   FractionalTranslation(
+                     translation: Tween<Offset>(
+                       begin: Offset.zero,
+                       end: Offset(1.0, 0.0)
+                     ).evaluate(animation),
+                     child: ImageIcon(AssetImage('assets/diamond.png'))
+                   )
+                 ],
+               )
+             ),
+           ),
+           Stack(
+             children: <Widget>[
+               Opacity(
+                 opacity: CurvedAnimation(
+                   parent: ReverseAnimation(animation),
+                   curve: Interval(0.5, 1.0)
+                 ).value,
+                 child: FractionalTranslation(
+                   translation: Tween<Offset>(
+                     begin: Offset.zero,
+                     end: Offset(0.5, 0.0)
+                   ).evaluate(animation),
+                   child: backTitle
+                 )
+               ),
+               Opacity(
+                 opacity: CurvedAnimation(
+                   parent: animation,
+                   curve: Interval(0.5, 1.0)
+                 ).value,
+                 child: FractionalTranslation(
+                   translation: Tween<Offset>(
+                     begin: Offset(-0.25, 0.0),
+                     end: Offset.zero
+                   ).evaluate(animation),
+                   child: frontTitle
+                 )
+               )
+             ],
+           )
+         ],
+      )
     );
   }
 }
